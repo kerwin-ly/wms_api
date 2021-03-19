@@ -2,18 +2,20 @@ import os
 import configparser
 import pymysql
 
+from app.config.settings import ROOT_DIR
+
 db = None
 
 
 def get_db_config():
-    cur_path = os.path.dirname(os.path.realpath(__file__))
-    config_path = os.path.join(cur_path, "config/sql.ini")
+    config_path = os.path.join(ROOT_DIR, "config", "sql.ini")
     conf = configparser.ConfigParser()
     conf.read(config_path)
+    print('conf', conf, config_path)
 
     return {
-        "host": conf.get("database", "host"),
-        "port": conf.get("database", "port"),
+        "host":  conf.get("database", "host"),
+        "port": conf.getint("database", "port"),
         "user": conf.get("database", "user"),
         "pwd": conf.get("database", "pwd"),
         "db": conf.get("database", "db"),
@@ -34,8 +36,7 @@ class SQLManager(object):
             port=DB_CONFIG["port"],
             user=DB_CONFIG["user"],
             passwd=DB_CONFIG["pwd"],
-            db=DB_CONFIG["db"],
-            charset=DB_CONFIG["charset"],
+            db=DB_CONFIG["db"]
         )
         self.cursor = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
 
@@ -78,3 +79,5 @@ class SQLManager(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+sql_manager = SQLManager()
