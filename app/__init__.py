@@ -11,5 +11,6 @@ def create_app() -> Flask:
 
     return app
 
+
 def register_blueprint(flask_app: Flask) -> None:
     flask_app.register_blueprint(resource.blueprint)

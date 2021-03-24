@@ -9,5 +9,5 @@ def handle_error(err, req, schema, status_code, headers):
 
 def parse(argmap, *args, **kwargs):
     if isinstance(argmap, SchemaABC):
-        argmap = getattr(argmap, '_declared_fields')
+        argmap = getattr(argmap, "_declared_fields")
     return parser.use_args(argmap, *args, **kwargs)

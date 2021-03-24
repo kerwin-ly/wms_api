@@ -14,9 +14,7 @@ class Nested(_Nested):
 
 
 class Dict(Raw):
-    default_error_messages = {
-        'invalid': 'Not a valid dict.'
-    }
+    default_error_messages = {"invalid": "Not a valid dict."}
 
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, collections.Mapping):
@@ -25,9 +23,7 @@ class Dict(Raw):
 
 
 class File(Raw):
-    default_error_messages = {
-        'invalid': 'Not a valid file.'
-    }
+    default_error_messages = {"invalid": "Not a valid file."}
 
     def _deserialize(self, value, attr, data, **kwargs):
         if not isinstance(value, FileStorage):
@@ -36,12 +32,12 @@ class File(Raw):
 
 
 __all__ = [
-    'String',
-    'Integer',
-    'List',
-    'Boolean',
-    'DateTime',
-    'Nested',
-    'Dict',
-    'File',
+    "String",
+    "Integer",
+    "List",
+    "Boolean",
+    "DateTime",
+    "Nested",
+    "Dict",
+    "File",
 ]

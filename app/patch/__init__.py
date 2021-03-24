@@ -3,6 +3,6 @@ from . import fields
 from .parser import parse
 
 __all__ = [
-    'fields',
-    'parse',
+    "fields",
+    "parse",
 ]

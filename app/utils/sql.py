@@ -11,10 +11,10 @@ def get_db_config():
     config_path = os.path.join(ROOT_DIR, "config", "sql.ini")
     conf = configparser.ConfigParser()
     conf.read(config_path)
-    print('conf', conf, config_path)
+    print("conf", conf, config_path)
 
     return {
-        "host":  conf.get("database", "host"),
+        "host": conf.get("database", "host"),
         "port": conf.getint("database", "port"),
         "user": conf.get("database", "user"),
         "pwd": conf.get("database", "pwd"),
@@ -36,7 +36,7 @@ class SQLManager(object):
             port=DB_CONFIG["port"],
             user=DB_CONFIG["user"],
             passwd=DB_CONFIG["pwd"],
-            db=DB_CONFIG["db"]
+            db=DB_CONFIG["db"],
         )
         self.cursor = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
 
@@ -58,9 +58,10 @@ class SQLManager(object):
         self.conn.commit()
 
     # 执行多条SQL语句
-    def multi_modify(self, sql, args=None):
+    def multi_excute(self, sql, args=None):
         self.cursor.executemany(sql, args)
         self.conn.commit()
+        print(dict(self.cursor))
 
     # 创建单条记录的语句
     def create(self, sql, args=None):
@@ -79,5 +80,6 @@ class SQLManager(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
 
 sql_manager = SQLManager()

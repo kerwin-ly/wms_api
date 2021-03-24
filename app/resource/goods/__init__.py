@@ -1,5 +1,6 @@
-from flask import Blueprint
+from flask_restful import Api
+from .. import blueprint
 
-goods = Blueprint("goods", __name__)
+api = Api(blueprint, prefix="/goods", decorators=[])
 
-import app.resource.goods.api
+from . import view, url

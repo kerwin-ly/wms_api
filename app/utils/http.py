@@ -10,18 +10,10 @@ from flask import jsonify
 class ApiResponse(object):
     @staticmethod
     def success(data={}):
-        res = jsonify({
-            "code": 200,
-            "msg": "",
-            "data": data
-        })
+        res = jsonify({"code": 200, "msg": "success", "data": data})
         return res
 
     @staticmethod
     def fail(msg, code=-1):
-        res = jsonify({
-            "code": code,
-            "msg": msg,
-            "data": {}
-        })
+        res = jsonify({"code": code, "msg": msg, "data": {}})
         return res
