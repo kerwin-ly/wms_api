@@ -8,7 +8,8 @@ from enum import Enum
 """
 
 
-class WarehouseInType(str, Enum):
+class WarehouseOperationType(str, Enum):
     purchase = 0
     gift = 1
     surplus = 2
+    out = 3

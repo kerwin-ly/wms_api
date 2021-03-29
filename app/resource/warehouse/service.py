@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+from app.resource.warehouse.type import WarehouseOperationType
+from app.utils import date
 from app.utils.sql import sql_manager
 
 
@@ -69,14 +71,6 @@ def out_ordered_params(fields, out_code, out_date, wms_in_list):
                 "out_num": item["num"],
                 "out_date": out_date,
                 "out_code": out_code,
-                "batch": ",".join(
-                    list(
-                        map(
-                            lambda in_item: str(in_item["in_id"]),
-                            get_out_batches(item["goods_id"], item["num"], wms_in_list),
-                        )
-                    )
-                ),
             },
             fields,
         )
@@ -124,7 +118,7 @@ def get_wms_in_list():
 """更新库存表的出库数量"""
 
 
-def update_wms_num(out_list, wms_in_list):
+def update_wms_num(out_list, wms_in_list, out_code, out_date):
     need_update_list = []
     for item in out_list:
         batch = get_out_batches(item["goods_id"], item["num"], wms_in_list)
@@ -147,3 +141,32 @@ def update_wms_num(out_list, wms_in_list):
         )
     )
     sql_manager.multi_excute("UPDATE warehouse SET total = total - %s WHERE goods_id = %s", total_tuple)
+    # 更新库存历史表，根据出库数量（先进先出规则），获取入库批次
+    history = tuple(
+        map(
+            lambda in_item: tuple(
+                OrderedDict(
+                    {
+                        "goods_id": in_item["goods_id"],
+                        "price": in_item["price"],
+                        "num": in_item["out_num"],
+                        "type": WarehouseOperationType.out,
+                        "last_update_time": out_date,
+                        "code": out_code,
+                    }
+                ).values()
+            ),
+            need_update_list,
+        )
+    )
+    add_wms_history(history)
+
+
+"""新增仓库操作记录"""
+
+
+def add_wms_history(params):
+    sql_manager.multi_excute(
+        "INSERT INTO warehouse_history (goods_id,price,num,type,last_update_time,code) VALUES (%s, %s, %s, %s, %s, %s)",
+        params,
+    )
