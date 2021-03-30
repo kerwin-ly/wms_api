@@ -98,39 +98,41 @@ class WarehouseInList(Resource):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args["start_date"]
-        end_date = args["end_date"]
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
         word = args["word"]
         in_type = args.get("in_type")
         filter_list = []
+        filter_str = ''
         if start_date and end_date:
             filter_list.append(f""" in_date BETWEEN '{start_date}' AND '{end_date}' """)
         if word:
             filter_list.append(f"""goods.name LIKE '%{word}%'""")
         if in_type is not None:
             filter_list.append(f"""in_type = '{in_type}'""")
+        if len(filter_list):
+            filter_str = " WHERE " + "AND ".join(filter_list)
 
-        filter_str = " AND ".join(filter_list)
         sql = f"""
             SELECT
-            wms.in_date as in_date,
-            wms.id as id,
+            wms.in_date,
+            wms.id,
             CAST(wms.price AS FLOAT) as price,
-            wms.in_num as in_num,
-            wms.in_type as in_type,
-            wms.in_code as in_code,
+            wms.in_num,
+            wms.in_type,
+            wms.in_code,
             goods.name as goods_name,
-            wms.goods_id as goods_id
+            wms.goods_id
             FROM
             warehouse_in as wms
-            LEFT JOIN goods ON wms.goods_id = goods.id WHERE {filter_str}
+            LEFT JOIN goods ON wms.goods_id = goods.id {filter_str} ORDER BY id DESC
             """
         data = sql_manager.get_list(sql + f"""LIMIT {offset},{page_size}""")
         count = sql_manager.get_one(
             f"""
             SELECT COUNT(wms.goods_id) as total FROM
             warehouse_in as wms
-            LEFT JOIN goods ON wms.goods_id = goods.id WHERE {filter_str} 
+            LEFT JOIN goods ON wms.goods_id = goods.id {filter_str} 
         """
         )
 
@@ -212,16 +214,17 @@ class WarehouseOutList(Resource):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args["start_date"]
-        end_date = args["end_date"]
-        word = args["word"]
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+        word = args.get("word")
         filter_list = []
+        filter_str = ''
         if start_date and end_date:
             filter_list.append(f""" out_date BETWEEN '{start_date}' AND '{end_date}' """)
         if word:
             filter_list.append(f"""goods.name LIKE '%{word}%'""")
-
-        filter_str = " AND ".join(filter_list)
+        if len(filter_list):
+            filter_str = " WHERE " + " AND ".join(filter_list)
         sql = f"""
         (
             (
@@ -231,7 +234,7 @@ class WarehouseOutList(Resource):
                     warehouse_out as wms_out
                 LEFT JOIN goods
                 ON wms_out.goods_id=goods.id
-                WHERE {filter_str}
+                {filter_str}
             ) A
             LEFT JOIN (
             SELECT `code`, goods_id, sum( num * price ) out_cost 
@@ -244,6 +247,7 @@ class WarehouseOutList(Resource):
             ON A.out_code = B.code AND A.goods_id = B.goods_id 
         )
         """
+        print('sql', sql)
         sql_list = "SELECT * FROM " + sql
         limit = f"""LIMIT {offset},{page_size}"""
         data = sql_manager.get_list(sql_list + limit)
@@ -272,7 +276,7 @@ class WarehouseOutBatch(Resource):
         page_size = args['page_size']
         offset = (page_index - 1) * page_size
         sql_list = f"""
-            SELECT CAST(price AS FLOAT) as price, num as in_num, type as in_type, code as in_code, last_update_time as in_date 
+            SELECT CAST(price AS FLOAT) as price, num as out_num, type as in_type, code as in_code, last_update_time as in_date 
             FROM warehouse_history 
             WHERE code='{out_code}' AND goods_id={goods_id}
             LIMIT {offset},{page_size}
@@ -301,30 +305,32 @@ class WarehouseHistory(Resource):
             "start_date": fields.String(),
             "end_date": fields.String(),
             "word": fields.String(missing=""),
-            "type": fields.Integer(missing=-1)
+            "type": fields.Integer()
         }
     )
     def get(self, args: typing.Dict):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args["start_date"]
-        end_date = args["end_date"]
-        word = args["word"]
-        type = args["type"]
+        start_date = args.get("start_date")
+        end_date = args.get("end_date")
+        word = args.get("word")
+        type = args.get("type")
         filter_list = []
+        filter_str = ''
         if start_date and end_date:
             filter_list.append(f"""last_update_time BETWEEN '{start_date}' AND '{end_date}' """)
         if word:
             filter_list.append(f"""goods.name LIKE '%{word}%'""")
-        if type != -1:
+        if type is not None:
             filter_list.append(f"""type={type}""")
+        if len(filter_list):
+            filter_str = ' WHERE ' + " AND ".join(filter_list)
 
-        filter_str = " AND ".join(filter_list)
-        sql_list = f"""SELECT goods_id, goods.name as goods_name, type as operation, last_update_time as date, num FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id WHERE {filter_str} LIMIT {offset},{page_size}"""
+        sql_list = f"""SELECT goods_id, goods.name as goods_name, type as operation, last_update_time as date, num FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id {filter_str} LIMIT {offset},{page_size}"""
         print(sql_list)
         data = sql_manager.get_list(sql_list)
-        sql_count = f"""SELECT COUNT(*) as total FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id WHERE {filter_str}"""
+        sql_count = f"""SELECT COUNT(*) as total FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id {filter_str}"""
         count = sql_manager.get_one(sql_count)
         res = {
             'total': count['total'],

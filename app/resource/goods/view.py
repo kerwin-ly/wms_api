@@ -26,12 +26,12 @@ class GoodsListResource(Resource):
         }
     )
     def get(self, args: typing.Dict):
-        """入库列表"""
+        """类目列表"""
         try:
             page_index = int(args["page_index"])
             page_size = int(args["page_size"])
             offset = (page_index - 1) * page_size
-            data = sql_manager.get_list(f"""SELECT id, name FROM goods LIMIT {offset},{page_size}""")
+            data = sql_manager.get_list(f"""SELECT id, name FROM goods WHERE name LIKE '%{args['word']}%' ORDER BY `id` DESC LIMIT {offset},{page_size}""")
             count = sql_manager.get_one("SELECT COUNT(id) FROM goods")
             result = {"total": count["COUNT(id)"], "items": data}
 
