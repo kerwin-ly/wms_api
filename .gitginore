@@ -26,3 +26,5 @@ deploy/docker-compose2.yml
 
 .ipynb_checkpoints/
 *.ipynb
+media/temp
+!media/temp/*.py

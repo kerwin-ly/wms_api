@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "34c671b8fca25d251ef014964221ce1d8b1c618e1cedd07a356555e7b74a1002"
+            "sha256": "8b3d66be25b963e40a17b6968877725458dc5e03538b535394107e82b38e6d7a"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -123,11 +123,11 @@
         },
         "marshmallow": {
             "hashes": [
-                "sha256:4ab2fdb7f36eb61c3665da67a7ce281c8900db08d72ba6bf0e695828253581f7",
-                "sha256:eca81d53aa4aafbc0e20566973d0d2e50ce8bf0ee15165bb799bec0df1e50177"
+                "sha256:0dd42891a5ef288217ed6410917f3c6048f585f8692075a0052c24f9bfff9dfd",
+                "sha256:16e99cb7f630c0ef4d7d364ed0109ac194268dde123966076ab3dafb9ae3906b"
             ],
             "markers": "python_version >= '3.5'",
-            "version": "==3.10.0"
+            "version": "==3.11.1"
         },
         "pymysql": {
             "hashes": [
@@ -152,6 +152,13 @@
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.15.0"
         },
+        "uuid": {
+            "hashes": [
+                "sha256:1f87cc004ac5120466f36c5beae48b4c48cc411968eed0eaecd3da82aa96193f"
+            ],
+            "index": "pypi",
+            "version": "==1.30"
+        },
         "webargs": {
             "hashes": [
                 "sha256:3beca296598067cec24a0b6f91c0afcc19b6e3c4d84ab026b931669628bb47b4",
@@ -168,6 +175,14 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
             "version": "==1.0.1"
+        },
+        "xlsxwriter": {
+            "hashes": [
+                "sha256:2b7e22b1268c2ed85d73e5629097c9a63357f2429667ada9863cd05ff8ee33aa",
+                "sha256:30ebc19d0f201fafa34a6c622050ed2a268ac8dee24037a61605caa801dc8af5"
+            ],
+            "index": "pypi",
+            "version": "==1.3.8"
         }
     },
     "develop": {}

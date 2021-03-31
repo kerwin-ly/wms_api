@@ -170,3 +170,92 @@ def add_wms_history(params):
         "INSERT INTO warehouse_history (goods_id,price,num,type,last_update_time,code) VALUES (%s, %s, %s, %s, %s, %s)",
         params,
     )
+
+def get_out_list_sql(args):
+    start_date = args.get("start_date")
+    end_date = args.get("end_date")
+    word = args.get("word")
+    filter_list = []
+    filter_str = ''
+    if start_date and end_date:
+        filter_list.append(f""" out_date BETWEEN '{start_date}' AND '{end_date}' """)
+    if word:
+        filter_list.append(f"""goods.name LIKE '%{word}%'""")
+    if len(filter_list):
+        filter_str = " WHERE " + " AND ".join(filter_list)
+    sql = f"""
+            (
+                (
+                    SELECT
+                        wms_out.*, name as goods_name 
+                    FROM
+                        warehouse_out as wms_out
+                    LEFT JOIN goods
+                    ON wms_out.goods_id=goods.id
+                    {filter_str}
+                ) A
+                LEFT JOIN (
+                SELECT `code`, goods_id, CAST(sum( num * price ) AS FLOAT) out_cost 
+                FROM
+                    warehouse_history 
+                WHERE
+                    `code` LIKE 'out%' 
+                GROUP BY `code`, goods_id 
+                ) B 
+                ON A.out_code = B.code AND A.goods_id = B.goods_id 
+            )
+            """
+    return sql
+
+def get_history_filter(args):
+    start_date = args.get("start_date")
+    end_date = args.get("end_date")
+    word = args.get("word")
+    type = args.get("type")
+    filter_list = []
+    filter_str = ''
+    if start_date and end_date:
+        filter_list.append(f"""last_update_time BETWEEN '{start_date}' AND '{end_date}' """)
+    if word:
+        filter_list.append(f"""goods.name LIKE '%{word}%'""")
+    if type is not None:
+        filter_list.append(f"""type={type}""")
+    if len(filter_list):
+        filter_str = ' WHERE ' + " AND ".join(filter_list)
+    return filter_str
+
+def get_history_list_sql(args):
+    filter_str = get_history_filter(args)
+
+    sql = f"""
+        FROM warehouse_history as wms 
+        LEFT JOIN goods 
+        ON wms.goods_id=goods.id {filter_str}"""
+
+    return sql
+
+def get_in_filter(args):
+    start_date = args.get("start_date")
+    end_date = args.get("end_date")
+    word = args["word"]
+    in_type = args.get("in_type")
+    filter_list = []
+    filter_str = ''
+    if start_date and end_date:
+        filter_list.append(f""" in_date BETWEEN '{start_date}' AND '{end_date}' """)
+    if word:
+        filter_list.append(f"""goods.name LIKE '%{word}%'""")
+    if in_type is not None:
+        filter_list.append(f"""in_type = '{in_type}'""")
+    if len(filter_list):
+        filter_str = " WHERE " + "AND ".join(filter_list)
+    return filter_str
+
+def get_in_list_sql(args):
+    filter_str = get_in_filter(args)
+    return f"""
+        FROM
+            warehouse_in as wms
+            LEFT JOIN goods ON wms.goods_id = goods.id {filter_str}
+    """
+

@@ -2,7 +2,7 @@ import os
 import configparser
 import pymysql
 
-from app.config.settings import ROOT_DIR
+from config.settings import ROOT_DIR
 
 db = None
 
@@ -37,6 +37,8 @@ class SQLManager(object):
             user=DB_CONFIG["user"],
             passwd=DB_CONFIG["pwd"],
             db=DB_CONFIG["db"],
+            use_unicode=True,
+            charset=DB_CONFIG["charset"]
         )
         self.cursor = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
 

@@ -1,5 +1,7 @@
 import typing
 from flask_restful import Resource
+
+from app.models.warehouse import MapWarehouseOperation
 from app.patch import parse, fields
 from app.resource.warehouse.service import (
     add_wms_num,
@@ -8,7 +10,8 @@ from app.resource.warehouse.service import (
     get_wms_in_list,
     update_wms_num,
     add_wms_history,
-)
+    get_out_list_sql, get_history_list_sql, get_in_filter, get_in_list_sql)
+from app.utils import fs
 from app.utils.basic import convert_arrobj_to_tuple
 from app.utils.date import now_date
 from app.utils.http import ApiResponse
@@ -98,22 +101,8 @@ class WarehouseInList(Resource):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args.get("start_date")
-        end_date = args.get("end_date")
-        word = args["word"]
-        in_type = args.get("in_type")
-        filter_list = []
-        filter_str = ''
-        if start_date and end_date:
-            filter_list.append(f""" in_date BETWEEN '{start_date}' AND '{end_date}' """)
-        if word:
-            filter_list.append(f"""goods.name LIKE '%{word}%'""")
-        if in_type is not None:
-            filter_list.append(f"""in_type = '{in_type}'""")
-        if len(filter_list):
-            filter_str = " WHERE " + "AND ".join(filter_list)
-
-        sql = f"""
+        sql = get_in_list_sql(args)
+        sql_list = f"""
             SELECT
             wms.in_date,
             wms.id,
@@ -123,16 +112,12 @@ class WarehouseInList(Resource):
             wms.in_code,
             goods.name as goods_name,
             wms.goods_id
-            FROM
-            warehouse_in as wms
-            LEFT JOIN goods ON wms.goods_id = goods.id {filter_str} ORDER BY id DESC
+            {sql} ORDER BY id DESC
             """
-        data = sql_manager.get_list(sql + f"""LIMIT {offset},{page_size}""")
+        data = sql_manager.get_list(sql_list + f"""LIMIT {offset},{page_size}""")
         count = sql_manager.get_one(
             f"""
-            SELECT COUNT(wms.goods_id) as total FROM
-            warehouse_in as wms
-            LEFT JOIN goods ON wms.goods_id = goods.id {filter_str} 
+            SELECT COUNT(wms.goods_id) as total {sql} 
         """
         )
 
@@ -140,6 +125,56 @@ class WarehouseInList(Resource):
 
         return ApiResponse.success(res)
 
+class WarehouseInDownload(Resource):
+    """入库表下载"""
+
+    @parse(
+        {
+            "page_index": fields.String(required=True),
+            "page_size": fields.String(required=True),
+            "start_date": fields.String(),
+            "end_date": fields.String(),
+            "word": fields.String(missing=""),
+            "type": fields.Integer()
+        }
+    )
+    def get(self, args: typing.Dict):
+        sql = get_in_list_sql(args)
+        sql_list = f"""
+            SELECT
+            wms.in_date,
+            wms.id,
+            CAST(wms.price AS FLOAT) as price,
+            wms.in_num,
+            wms.in_type,
+            wms.in_code,
+            goods.name as goods_name,
+            wms.goods_id
+            {sql} ORDER BY id DESC
+        """
+        data = sql_manager.get_list(sql_list)
+        format_data = map(lambda item: {**item, 'in_type': MapWarehouseOperation[str(item['in_type'])]}, data)
+        cols = [{
+            'key': 'goods_name',
+            'value': '类目名',
+        }, {
+            'key': 'price',
+            'value': '单价'
+        }, {
+            'key': 'in_num',
+            'value': '入库数量'
+        }, {
+            'key': 'in_type',
+            'value': '入库类型'
+        }, {
+            'key': 'in_code',
+            'value': '入库单号'
+        }, {
+            'key': 'in_date',
+            'value': '入库时间'
+        }]
+        url = fs.generate_excel(cols, format_data, '入库列表')
+        return ApiResponse.success({'url': url})
 
 class WarehouseIn(Resource):
     """入库"""
@@ -214,49 +249,52 @@ class WarehouseOutList(Resource):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args.get("start_date")
-        end_date = args.get("end_date")
-        word = args.get("word")
-        filter_list = []
-        filter_str = ''
-        if start_date and end_date:
-            filter_list.append(f""" out_date BETWEEN '{start_date}' AND '{end_date}' """)
-        if word:
-            filter_list.append(f"""goods.name LIKE '%{word}%'""")
-        if len(filter_list):
-            filter_str = " WHERE " + " AND ".join(filter_list)
-        sql = f"""
-        (
-            (
-                SELECT
-                    wms_out.*, name as goods_name 
-                FROM
-                    warehouse_out as wms_out
-                LEFT JOIN goods
-                ON wms_out.goods_id=goods.id
-                {filter_str}
-            ) A
-            LEFT JOIN (
-            SELECT `code`, goods_id, sum( num * price ) out_cost 
-            FROM
-                warehouse_history 
-            WHERE
-                `code` LIKE 'out%' 
-            GROUP BY `code`, goods_id 
-            ) B 
-            ON A.out_code = B.code AND A.goods_id = B.goods_id 
-        )
-        """
-        print('sql', sql)
+        sql = get_out_list_sql(args)
         sql_list = "SELECT * FROM " + sql
         limit = f"""LIMIT {offset},{page_size}"""
         data = sql_manager.get_list(sql_list + limit)
         sql_count = "SELECT COUNT(*) as total FROM " + sql
         count = sql_manager.get_one(sql_count)
-        result = list(map(lambda x: {**x, "out_cost": float(x["out_cost"])}, data))
-        res = {"total": count["total"], "items": result}
+        res = {"total": count["total"], "items": data}
 
         return ApiResponse.success(res)
+
+class WarehouseOutDownload(Resource):
+    """出库列表下载"""
+
+    @parse(
+        {
+            "page_index": fields.String(required=True),
+            "page_size": fields.String(required=True),
+            "start_date": fields.String(),
+            "end_date": fields.String(),
+            "word": fields.String(missing=""),
+        }
+    )
+    def get(self, args: typing.Dict):
+        sql = get_out_list_sql(args)
+        sql_list = "SELECT * FROM " + sql
+        data = sql_manager.get_list(sql_list)
+        cols = [{
+            'key': 'goods_name',
+            'value': '类目名',
+        }, {
+            'key': 'out_num',
+            'value': '出库数量'
+        }, {
+            'key': 'out_code',
+            'value': '出库单号'
+        }, {
+            'key': 'out_date',
+            'value': '出库时间'
+        }, {
+            'key': 'out_cost',
+            'value': '出库成本'
+        }]
+        url = fs.generate_excel(cols, data, '出库列表')
+        return ApiResponse.success({'url': url})
+
+
 
 class WarehouseOutBatch(Resource):
     """出库批次详情"""
@@ -312,28 +350,48 @@ class WarehouseHistory(Resource):
         page_index = int(args["page_index"])
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
-        start_date = args.get("start_date")
-        end_date = args.get("end_date")
-        word = args.get("word")
-        type = args.get("type")
-        filter_list = []
-        filter_str = ''
-        if start_date and end_date:
-            filter_list.append(f"""last_update_time BETWEEN '{start_date}' AND '{end_date}' """)
-        if word:
-            filter_list.append(f"""goods.name LIKE '%{word}%'""")
-        if type is not None:
-            filter_list.append(f"""type={type}""")
-        if len(filter_list):
-            filter_str = ' WHERE ' + " AND ".join(filter_list)
-
-        sql_list = f"""SELECT goods_id, goods.name as goods_name, type as operation, last_update_time as date, num FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id {filter_str} LIMIT {offset},{page_size}"""
-        print(sql_list)
+        sql = get_history_list_sql(args)
+        sql_list = f"""SELECT goods_id, goods.name as goods_name, type as operation, last_update_time as date, num {sql} LIMIT {offset},{page_size}"""
         data = sql_manager.get_list(sql_list)
-        sql_count = f"""SELECT COUNT(*) as total FROM warehouse_history as wms LEFT JOIN goods ON wms.goods_id=goods.id {filter_str}"""
+        sql_count = f"""SELECT COUNT(*) as total {sql}"""
         count = sql_manager.get_one(sql_count)
         res = {
             'total': count['total'],
             'items': data
         }
         return ApiResponse.success(res)
+
+class WarehouseHistoryDownload(Resource):
+    """明细表下载"""
+
+    @parse(
+        {
+            "page_index": fields.String(required=True),
+            "page_size": fields.String(required=True),
+            "start_date": fields.String(),
+            "end_date": fields.String(),
+            "word": fields.String(missing=""),
+            "type": fields.Integer()
+        }
+    )
+    def get(self, args: typing.Dict):
+        sql = get_history_list_sql(args)
+        sql_list = f"""SELECT goods_id, goods.name as goods_name, type as operation, last_update_time as date, num {sql}"""
+        data = sql_manager.get_list(sql_list)
+        format_data = map(lambda item: {**item, 'operation': MapWarehouseOperation[str(item['operation'])]}, data)
+        cols = [{
+            'key': 'goods_name',
+            'value': '类目名',
+        }, {
+            'key': 'operation',
+            'value': '操作类型'
+        }, {
+            'key': 'num',
+            'value': '数量'
+        }, {
+            'key': 'date',
+            'value': '时间'
+        }]
+        url = fs.generate_excel(cols, format_data, '明细列表')
+        return ApiResponse.success({'url': url})
+
