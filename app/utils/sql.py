@@ -11,7 +11,6 @@ def get_db_config():
     config_path = os.path.join(ROOT_DIR, "config", "sql.ini")
     conf = configparser.ConfigParser()
     conf.read(config_path)
-    print("conf", conf, config_path)
 
     return {
         "host": conf.get("database", "host"),

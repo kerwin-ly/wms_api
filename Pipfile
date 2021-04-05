@@ -8,8 +8,10 @@ webargs = "==5.5.2"
 flask = "*"
 flask-restful = "*"
 pymysql = "*"
-xlsxwriter = "*"
 uuid = "*"
+gevent = "*"
+gunicorn = "*"
+xlwt = "*"
 
 [dev-packages]
 
