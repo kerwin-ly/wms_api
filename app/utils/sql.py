@@ -56,21 +56,33 @@ class SQLManager(object):
 
     # 执行单条SQL语句
     def moddify(self, sql, args=None):
-        self.cursor.execute(sql, args)
-        self.conn.commit()
+        try:
+            self.cursor.execute(sql, args)
+            self.conn.commit()
+        except Exception as err:
+            print('excute sql error:', err)
+            self.conn.rollback()  # 发生错误时回滚
 
     # 执行多条SQL语句
     def multi_excute(self, sql, args=None):
-        self.cursor.executemany(sql, args)
-        self.conn.commit()
-        print(dict(self.cursor))
+        try:
+            self.cursor.executemany(sql, args)
+            self.conn.commit()
+        except Exception as err:
+            print('multi excute error:', err)
+            self.conn.rollback()  # 发生错误时回滚
 
     # 创建单条记录的语句
     def create(self, sql, args=None):
-        self.cursor.execute(sql, args)
-        self.conn.commit()
-        last_id = self.cursor.lastrowid
-        return last_id
+        try:
+            self.cursor.execute(sql, args)
+            self.conn.commit()
+            last_id = self.cursor.lastrowid
+            return last_id
+        except Exception as err:
+            print('excute sql error:', err)
+            self.conn.rollback()  # 发生错误时回滚
+            return None
 
     # 关闭数据库cursor和连接
     def close(self):
