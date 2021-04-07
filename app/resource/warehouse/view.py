@@ -10,7 +10,7 @@ from app.resource.warehouse.service import (
     get_wms_in_list,
     update_wms_num,
     add_wms_history,
-    get_out_list_sql, get_history_list_sql, get_in_filter, get_in_list_sql)
+    get_out_list_sql, get_history_list_sql, get_in_list_sql)
 from app.utils import fs
 from app.utils.basic import convert_arrobj_to_tuple
 from app.utils.date import now_date
@@ -250,6 +250,7 @@ class WarehouseOutList(Resource):
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
         sql = get_out_list_sql(args)
+        print('sql', sql)
         sql_list = "SELECT * FROM " + sql
         limit = f"""LIMIT {offset},{page_size}"""
         data = sql_manager.get_list(sql_list + limit)

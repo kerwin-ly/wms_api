@@ -37,7 +37,8 @@ class SQLManager(object):
             passwd=DB_CONFIG["pwd"],
             db=DB_CONFIG["db"],
             use_unicode=True,
-            charset=DB_CONFIG["charset"]
+            charset=DB_CONFIG["charset"],
+            autocommit=True # 默认执行sql后提交事务，防止数据不更新
         )
         self.cursor = self.conn.cursor(cursor=pymysql.cursors.DictCursor)
 
