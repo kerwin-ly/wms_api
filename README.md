@@ -1,4 +1,5 @@
-# Warehouse Manage System
+# Warehouse Management System
+>A simple warehouse management system.
 
 ## Before
 
