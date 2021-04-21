@@ -250,7 +250,6 @@ class WarehouseOutList(Resource):
         page_size = int(args["page_size"])
         offset = (page_index - 1) * page_size
         sql = get_out_list_sql(args)
-        print('sql', sql)
         sql_list = "SELECT * FROM " + sql
         limit = f"""LIMIT {offset},{page_size}"""
         data = sql_manager.get_list(sql_list + limit)
