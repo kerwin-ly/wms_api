@@ -4,14 +4,20 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-webargs = "==5.5.2"
 flask = "*"
 flask-restful = "*"
 pymysql = "*"
-uuid = "*"
-gevent = "*"
+sqlalchemy-utils = "*"
+concurrent-log-handler = "*"
+flask-script = "*"
+flask-migrate = "*"
+webargs = "==5.5.2"
+sqlalchemy = "==1.3.20"
 gunicorn = "*"
-xlwt = "*"
+flask-sqlalchemy = "*"
+marshmallow-sqlalchemy = "*"
+flask-marshmallow = "*"
+paramiko = "*"
 
 [dev-packages]
 

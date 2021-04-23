@@ -1,17 +1,8 @@
-import typing
-from flask import Flask
+from flask import Blueprint
 
-from app import resource
-from config.settings import MEDIA_PATH
+blueprint = Blueprint("api", __name__, url_prefix="/api")
 
 
-def create_app() -> Flask:
-    app = Flask(__name__, static_folder=MEDIA_PATH)
-
-    register_blueprint(app)
-
-    return app
-
-
-def register_blueprint(flask_app: Flask) -> None:
-    flask_app.register_blueprint(resource.blueprint)
+from . import server
+from . import project
+from . import association

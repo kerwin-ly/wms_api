@@ -1,16 +1,29 @@
-# Warehouse Management System
->A simple warehouse management system.
+# 自动化运维平台
+>通过可视化操作，进行快速公网/离线部署，更新，重启，一键打包等操作。同时监控服务器/容器状态，通过钉钉及时通知相关人员。
 
-## Before
+## 环境配置
 
-### login in Mysql
+### 全局依赖
+python版本：`v3.7.4`
+
+通过`pipenv`管理项目依赖，首先全局安装`pipenv`
 ```shell
-mysql -u root -p
+pip3 install pipenv # pip3 or pip
 ```
 
-### install packages
-```shell 
-pip3 install pipenv
-
+### 项目依赖安装
+```shell
 pipenv install
 ```
+
+## TODO
+1.日志平台集成
+
+2.服务器监控告警平台集成，钉钉通知
+
+3.提供额外的脚本方式启动服务
+
+4.服务的依赖树图
+
+5.一键打包/部署
+
