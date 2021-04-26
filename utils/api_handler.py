@@ -40,22 +40,22 @@ def register_api_handler(app: Flask) -> None:
     @app.errorhandler(404)
     @log_err
     def not_found(err: HTTPException) -> typing.Tuple[Response, typing.Optional[int]]:
-        return ApiResponse.fail("Not Found", err.code)
+        return ApiResponse.error("Not Found", err.code)
 
     @app.errorhandler(400)
     @log_err
     def bad_request(err: HTTPException) -> typing.Tuple[Response, typing.Optional[int]]:
-        return ApiResponse.fail("Bad Request", err.code)
+        return ApiResponse.error("Bad Request", err.code)
 
     @app.errorhandler(ValidationError)
     @log_err
     def validation_error(err: ValidationError) -> typing.Tuple[Response, typing.Optional[int]]:
-        return ApiResponse.fail(err.messages, 400)
+        return ApiResponse.error(err.messages, 400)
 
     @app.errorhandler(NoResultFound)
     @log_err
     def no_result_found(err: NoResultFound) -> typing.Tuple[Response, typing.Optional[int]]:
-        return ApiResponse.fail(str(err), 400)
+        return ApiResponse.error(str(err), 400)
 
     @app.errorhandler(Exception)
     @log_err
@@ -63,4 +63,4 @@ def register_api_handler(app: Flask) -> None:
         from database.mysql_db import session
 
         session.rollback()
-        return ApiResponse.fail("服务器内部错误或网络错误", 500)
+        return ApiResponse.error("服务器内部错误或网络错误", 500)

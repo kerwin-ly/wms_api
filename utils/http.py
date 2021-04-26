@@ -14,7 +14,7 @@ class ApiResponse(object):
         return res
 
     @staticmethod
-    def error(msg, code=-1):
+    def error(msg: str, code=-1):
         res = jsonify({"code": code, "msg": msg, "data": {}})
         return res
 
