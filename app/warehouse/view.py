@@ -1,9 +1,10 @@
 import typing
 from flask_restful import Resource
+from sqlalchemy import func
 
 from app.common.models.goods import Goods, GoodsType
-from app.common.models.warehouse import WarehouseIn, WarehouseHistory, WarehouseOut
-from app.warehouse.schema import WarehouseHistorySchema
+from app.common.models.warehouse import WarehouseIn, WarehouseOut, Warehouse, WarehouseHistory
+from app.warehouse.schema import WarehouseSchema
 from app.warehouse.service import (
     get_out_batches,
     get_filtered_in_list,
@@ -15,7 +16,9 @@ from app.warehouse.service import (
     convert_in2history,
     convert_in2total,
     insert_goods_in,
-    get_history_list)
+    get_history_list,
+    get_in_list,
+    get_out_list)
 from database.mysql_db import session
 from patch import fields, parse
 from utils import fs
@@ -31,10 +34,42 @@ class WarehouseList(Resource):
             "page_index": fields.Integer(required=True),
             "page_size": fields.Integer(required=True),
             "word": fields.String(missing=""),
+            "type_id": fields.Integer()
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        subq = WarehouseIn.query \
+            .with_entities(
+                WarehouseIn.goods_id,
+                func.sum(WarehouseIn.price * (WarehouseIn.in_num - WarehouseIn.out_num)).label('cost'),
+            ) \
+            .filter(WarehouseIn.in_num > WarehouseIn.out_num) \
+            .group_by(WarehouseIn.goods_id).subquery()
+
+        q = Warehouse.query \
+            .with_entities(
+                Warehouse.id,
+                Warehouse.total.label('num'),
+                Warehouse.goods_id,
+                Goods.name.label('goods_name'),
+                Goods.type_id,
+                GoodsType.name.label('type_name'),
+                subq.c.cost
+            ) \
+            .outerjoin(Goods, Warehouse.goods_id == Goods.id) \
+            .outerjoin(GoodsType, Goods.type_id == GoodsType.id) \
+            .outerjoin(subq, Warehouse.goods_id == subq.c.goods_id)
+
+        if args.get("word"):
+            q = q.filter(Goods.name.like(f"%{args['word']}%"))
+        if args.get("type_id"):
+            q = q.filter(Goods.type_id == args["type_id"])
+        count = q.count()
+        offset = (args["page_index"] - 1) * args["page_size"]
+        items = q.offset(offset).limit(args["page_size"]).all()
+        result = WarehouseSchema(many=True).dump(items)
+
+        return {"total": count, "items": result}
 
 
 class WarehouseBatch(Resource):
@@ -61,12 +96,15 @@ class WarehouseInList(Resource):
             "start_date": fields.String(),
             "end_date": fields.String(),
             "word": fields.String(missing=""),
-            "in_type": fields.Integer(),
+            "type_id": fields.Integer(),
+            "in_type": fields.String(validate=lambda x: x in ["purchase", "surplus", "gift"]),
         }
     )
     def get(self, args: typing.Dict):
         """入库列表"""
-        pass
+        data = get_in_list(args)
+
+        return ApiResponse.success(data)
 
 
 class WarehouseInDownload(Resource):
@@ -79,11 +117,28 @@ class WarehouseInDownload(Resource):
             "start_date": fields.String(),
             "end_date": fields.String(),
             "word": fields.String(missing=""),
-            "type": fields.Integer(),
+            "type_id": fields.Integer(),
+            "in_type": fields.String(validate=lambda x: x in ["purchase", "surplus", "gift"]),
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        data = get_in_list(args)
+        result = data["items"]
+        cols = [
+            {
+                "key": "goods_name",
+                "value": "类目名",
+            },
+            {"key": "type_name", "value": "分类名称"},
+            {"key": "price", "value": "单价"},
+            {"key": "in_num", "value": "入库数量"},
+            {"key": "in_type", "value": "入库类型"},
+            {"key": "in_code", "value": "入库单号"},
+            {"key": "in_date", "value": "入库时间"},
+        ]
+        url = fs.generate_excel(cols, result, "入库列表")
+
+        return ApiResponse.success({"url": url})
 
 
 class WarehouseItemIn(Resource):
@@ -111,7 +166,6 @@ class WarehouseItemIn(Resource):
         in_list = list(map(lambda x: {**x, "in_code": in_code}, args["fields"]))
 
         # 更新入库表
-        # session.bulk_save_objects(in_models, return_defaults=True)
         insert_goods_in(in_list)
 
         # 更新明细表
@@ -174,7 +228,8 @@ class WarehouseOutList(Resource):
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        data = get_out_list(args)
+        return ApiResponse.success(data)
 
 
 class WarehouseOutDownload(Resource):
@@ -223,7 +278,7 @@ class WarehouseItemHistory(Resource):
         }
     )
     def get(self, args: typing.Dict):
-        data= get_history_list(args)
+        data = get_history_list(args)
 
         return ApiResponse.success(data)
 
@@ -244,23 +299,17 @@ class WarehouseHistoryDownload(Resource):
     )
     def get(self, args: typing.Dict):
         data = get_history_list(args)
-        result = data['items']
-        cols = [{
-            'key': 'goods_name',
-            'value': '类目名',
-        }, {
-            'key': 'type_name',
-            'value': '分类名称'
-        }, {
-            'key': 'operation',
-            'value': '操作类型'
-        }, {
-            'key': 'num',
-            'value': '数量'
-        }, {
-            'key': 'date',
-            'value': '时间'
-        }]
+        result = data["items"]
+        cols = [
+            {
+                "key": "goods_name",
+                "value": "类目名",
+            },
+            {"key": "type_name", "value": "分类名称"},
+            {"key": "operation", "value": "操作类型"},
+            {"key": "num", "value": "数量"},
+            {"key": "date", "value": "时间"},
+        ]
 
-        url = fs.generate_excel(cols, result, '明细列表')
-        return ApiResponse.success({'url': url})
+        url = fs.generate_excel(cols, result, "明细列表")
+        return ApiResponse.success({"url": url})

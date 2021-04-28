@@ -3,12 +3,14 @@
 """
 from collections import OrderedDict
 
+from sqlalchemy import cast, Float, func, and_
+
 from app.common.models.goods import Goods, GoodsType
-from app.common.models.warehouse import WarehouseIn, Warehouse, WarehouseHistory
+from app.common.models.warehouse import WarehouseIn, Warehouse, WarehouseHistory, WarehouseOut
 from app.common.types.warehouse import WarehouseAction
-from app.warehouse.schema import WarehouseInSchema, WarehouseSchema, WarehouseHistorySchema
+from app.warehouse.schema import WarehouseInSchema, WarehouseSchema, WarehouseHistorySchema, WarehouseOutSchema
 from database.mysql_db import session
-from utils.date import now_date
+from utils.http import ApiResponse
 
 """
 批量插入入库表
@@ -84,7 +86,6 @@ in_list: 未全部出库的入库单信息
 
 
 def get_out_batches(goods_id: int, out_total: int, in_list):
-    # in_num = exit_num + out_num
     filter_list = list(filter(lambda item: item["goods_id"] == goods_id, in_list))
     batches = []
     total = 0
@@ -174,14 +175,17 @@ def out_of_range(out_list):
             return True
     return False
 
+
 """
 获取明细表信息
 """
+
+
 def get_history_list(args):
     q = (
         WarehouseHistory.query.outerjoin(Goods, WarehouseHistory.goods_id == Goods.id)
-            .outerjoin(GoodsType, Goods.type_id == GoodsType.id)
-            .with_entities(
+        .outerjoin(GoodsType, Goods.type_id == GoodsType.id)
+        .with_entities(
             WarehouseHistory.id,
             WarehouseHistory.goods_id,
             Goods.name.label("goods_name"),
@@ -190,6 +194,7 @@ def get_history_list(args):
             WarehouseHistory.type.label("operation"),
             WarehouseHistory.created_time.label("date"),
             WarehouseHistory.num,
+            cast(WarehouseHistory.price, Float),
         )
     )
     if args.get("start_date") and args.get("end_date"):
@@ -207,7 +212,85 @@ def get_history_list(args):
     items = q.offset(offset).limit(args["page_size"]).all()
     result = WarehouseHistorySchema(many=True).dump(items)
 
-    return {
-        'total': count,
-        'items': result
-    }
+    return {"total": count, "items": result}
+
+
+"""
+获取入库列表
+"""
+
+
+def get_in_list(args):
+    q = WarehouseIn.query.outerjoin(Goods, WarehouseIn.goods_id == Goods.id) \
+        .outerjoin(GoodsType, Goods.type_id == GoodsType.id) \
+        .with_entities(
+            WarehouseIn.id,
+            WarehouseIn.goods_id,
+            Goods.name.label("goods_name"),
+            Goods.type_id,
+            GoodsType.name.label("type_name"),
+            WarehouseIn.in_type,
+            WarehouseIn.in_code,
+            cast(WarehouseIn.price.label("price"), Float),
+            WarehouseIn.in_num,
+            WarehouseIn.created_time.label("in_date"),
+        )
+
+
+    if args.get("start_date") and args.get("end_date"):
+        q = q.filter(WarehouseIn.created_time >= args["start_date"]).filter(
+            WarehouseIn.created_time <= args["end_date"]
+        )
+    if args.get("word"):
+        q = q.filter(Goods.name.like(f"%{args['word']}%"))
+    if args.get("type_id"):
+        q = q.filter(Goods.type_id == args["type_id"])
+    if args.get("type"):
+        q = q.filter(WarehouseIn.in_type == args["in_type"])
+    count = q.count()
+    offset = (args["page_index"] - 1) * args["page_size"]
+    items = q.offset(offset).limit(args["page_size"]).all()
+    result = WarehouseInSchema(many=True).dump(items)
+
+    return {"total": count, "items": result}
+
+
+"""
+出库列表
+"""
+
+
+def get_out_list(args):
+    subq = WarehouseHistory.query.filter(WarehouseHistory.code.like((f"out%"))) \
+        .with_entities(
+            WarehouseHistory.code,
+            WarehouseHistory.goods_id,
+            func.sum(WarehouseHistory.num * WarehouseHistory.price).label("out_cost"),
+        ) \
+        .group_by(WarehouseHistory.code, WarehouseHistory.goods_id)
+
+    q = WarehouseOut.query.outerjoin(Goods, WarehouseOut.goods_id == Goods.id) \
+        .outerjoin(GoodsType, Goods.type_id == GoodsType.id) \
+        .outerjoin(subq, and_(subq.code == WarehouseOut.out_code, subq.goods_id == WarehouseOut.goods_id)) \
+        .with_entities(
+            Warehouse.id,
+            Warehouse.goods_id,
+            Goods.name.label("goods_name"),
+            Goods.type_id,
+            GoodsType.name.label("type_name"),
+            Warehouse.total.label("num"),
+        )
+
+    if args.get("start_date") and args.get("end_date"):
+        q = q.filter(WarehouseIn.created_time >= args["start_date"]).filter(
+            WarehouseIn.created_time <= args["end_date"]
+        )
+    if args.get("word"):
+        q = q.filter(Goods.name.like(f"%{args['word']}%"))
+    if args.get("type_id"):
+        q = q.filter(Goods.type_id == args["type_id"])
+    count = q.count()
+    offset = (args["page_index"] - 1) * args["page_size"]
+    items = q.offset(offset).limit(args["page_size"]).all()
+    result = WarehouseOutSchema(many=True).dump(items)
+    return ApiResponse.success({"total": count, "items": result})
