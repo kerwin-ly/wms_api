@@ -42,6 +42,7 @@ def register_api_handler(app: Flask) -> None:
     def not_found(err: HTTPException) -> typing.Tuple[Response, typing.Optional[int]]:
         return ApiResponse.error("Not Found", err.code)
 
+    @app.errorhandler(422)
     @app.errorhandler(400)
     @log_err
     def bad_request(err: HTTPException) -> typing.Tuple[Response, typing.Optional[int]]:
@@ -59,8 +60,8 @@ def register_api_handler(app: Flask) -> None:
 
     @app.errorhandler(Exception)
     @log_err
-    def err_not_catch() -> typing.Tuple[Response, typing.Optional[int]]:
+    def err_not_catch(err: Exception) -> typing.Tuple[Response, typing.Optional[int]]:
         from database.mysql_db import session
 
         session.rollback()
-        return ApiResponse.error("服务器内部错误或网络错误", 500)
+        return ApiResponse.error("服务器内部错误或网络错误" + str(err), 500)

@@ -17,5 +17,3 @@ class ApiResponse(object):
     def error(msg: str, code=-1):
         res = jsonify({"code": code, "msg": msg, "data": {}})
         return res
-
-
