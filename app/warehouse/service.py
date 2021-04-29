@@ -2,15 +2,12 @@
 更新明细表
 """
 from collections import OrderedDict
-
 from sqlalchemy import cast, Float, func, and_
-
 from app.common.models.goods import Goods, GoodsType
 from app.common.models.warehouse import WarehouseIn, Warehouse, WarehouseHistory, WarehouseOut
 from app.common.types.warehouse import WarehouseAction
 from app.warehouse.schema import WarehouseInSchema, WarehouseSchema, WarehouseHistorySchema, WarehouseOutSchema
 from database.mysql_db import session
-from utils.http import ApiResponse
 
 """
 批量插入入库表
@@ -39,15 +36,13 @@ def update_goods_total(type: str, goods_list):
     if type == "out":
         for item in goods_list:
             goods_item = Warehouse.query.filter_by(goods_id=item["goods_id"]).one()
-            goods_dict = WarehouseSchema().dump(goods_item)
-            goods_num = goods_dict["total"] - item["num"]
+            goods_num = goods_item.total - item["num"]
             goods_item.update(total=goods_num)
     elif type == "in":
         for item in goods_list:
             goods_item = Warehouse.query.filter_by(goods_id=item["goods_id"]).first()
             if goods_item:
-                goods_dict = WarehouseSchema().dump(goods_item)
-                goods_num = goods_dict["total"] + item["num"]
+                goods_num = goods_item.total + item["num"]
                 goods_item.update(total=goods_num)
             else:
                 Warehouse.create(goods_id=item["goods_id"], total=item["num"])
@@ -90,13 +85,12 @@ def get_out_batches(goods_id: int, out_total: int, in_list):
     batches = []
     total = 0
     index = 0
-    print(out_total, total)
     while out_total > total:
-        exit_num = filter_list[index]["exist_num"]
-        if total + exit_num > out_total:
+        exist_num = filter_list[index]["exist_num"]
+        if total + exist_num > out_total:
             current_out = out_total - total
         else:
-            current_out = exit_num
+            current_out = exist_num
 
         batches.append({**OrderedDict(filter_list[index]), "out_num": current_out})  # 如果出库总数小于和，则表明最后一批次未完全出库
         total += current_out
@@ -135,7 +129,7 @@ def convert_out2history(goods_list, out_code: str):
                 "num": item["out_num"],
                 "price": item["price"],
                 "code": out_code,
-                "type": WarehouseAction.out,
+                "type": item['in_type'],
             },
             goods_list,
         )
@@ -170,7 +164,6 @@ def convert_in2history(in_list):
 def out_of_range(out_list):
     for item in out_list:
         result = Warehouse.query.with_entities(Warehouse.total).filter_by(goods_id=item["goods_id"]).one()
-        print(item["num"], result.total)
         if item["num"] > result.total:
             return True
     return False
@@ -182,9 +175,9 @@ def out_of_range(out_list):
 
 
 def get_history_list(args):
-    q = (
-        WarehouseHistory.query.outerjoin(Goods, WarehouseHistory.goods_id == Goods.id)
-        .outerjoin(GoodsType, Goods.type_id == GoodsType.id)
+    q = WarehouseHistory.query \
+        .outerjoin(Goods, WarehouseHistory.goods_id == Goods.id) \
+        .outerjoin(GoodsType, Goods.type_id == GoodsType.id) \
         .with_entities(
             WarehouseHistory.id,
             WarehouseHistory.goods_id,
@@ -192,11 +185,12 @@ def get_history_list(args):
             Goods.type_id,
             GoodsType.name.label("type_name"),
             WarehouseHistory.type.label("operation"),
-            WarehouseHistory.created_time.label("date"),
+            func.date_format(WarehouseHistory.created_time, '%Y-%m-%d %H:%i:%S').label('date'),
             WarehouseHistory.num,
+            WarehouseHistory.code,
             cast(WarehouseHistory.price, Float),
         )
-    )
+
     if args.get("start_date") and args.get("end_date"):
         q = q.filter(WarehouseHistory.created_time >= args["start_date"]).filter(
             WarehouseHistory.created_time <= args["end_date"]
@@ -207,12 +201,14 @@ def get_history_list(args):
         q = q.filter(Goods.type_id == args["type_id"])
     if args.get("type"):
         q = q.filter(WarehouseHistory.type == args["type"])
+    q = q.order_by(WarehouseHistory.created_time.desc())
     count = q.count()
     offset = (args["page_index"] - 1) * args["page_size"]
     items = q.offset(offset).limit(args["page_size"]).all()
     result = WarehouseHistorySchema(many=True).dump(items)
+    result_list = list(map(lambda x: {**x, "state": 'out' if x['code'].startswith('out') else 'in'},result))
 
-    return {"total": count, "items": result}
+    return {"total": count, "items": result_list}
 
 
 """
@@ -231,9 +227,9 @@ def get_in_list(args):
             GoodsType.name.label("type_name"),
             WarehouseIn.in_type,
             WarehouseIn.in_code,
-            cast(WarehouseIn.price.label("price"), Float),
+            WarehouseIn.price,
             WarehouseIn.in_num,
-            WarehouseIn.created_time.label("in_date"),
+            func.date_format(WarehouseIn.created_time, '%Y-%m-%d %H:%i:%S').label('in_date'),
         )
 
 
@@ -247,6 +243,7 @@ def get_in_list(args):
         q = q.filter(Goods.type_id == args["type_id"])
     if args.get("type"):
         q = q.filter(WarehouseIn.in_type == args["in_type"])
+    q = q.order_by(WarehouseIn.created_time.desc())
     count = q.count()
     offset = (args["page_index"] - 1) * args["page_size"]
     items = q.offset(offset).limit(args["page_size"]).all()
@@ -263,22 +260,26 @@ def get_in_list(args):
 def get_out_list(args):
     subq = WarehouseHistory.query.filter(WarehouseHistory.code.like((f"out%"))) \
         .with_entities(
-            WarehouseHistory.code,
             WarehouseHistory.goods_id,
+            WarehouseHistory.code,
             func.sum(WarehouseHistory.num * WarehouseHistory.price).label("out_cost"),
         ) \
-        .group_by(WarehouseHistory.code, WarehouseHistory.goods_id)
+        .group_by(WarehouseHistory.code, WarehouseHistory.goods_id)\
+        .subquery()
 
     q = WarehouseOut.query.outerjoin(Goods, WarehouseOut.goods_id == Goods.id) \
         .outerjoin(GoodsType, Goods.type_id == GoodsType.id) \
-        .outerjoin(subq, and_(subq.code == WarehouseOut.out_code, subq.goods_id == WarehouseOut.goods_id)) \
+        .outerjoin(subq, and_(subq.c.code == WarehouseOut.out_code, subq.c.goods_id == WarehouseOut.goods_id)) \
         .with_entities(
-            Warehouse.id,
-            Warehouse.goods_id,
+            WarehouseOut.id,
+            WarehouseOut.goods_id,
             Goods.name.label("goods_name"),
             Goods.type_id,
             GoodsType.name.label("type_name"),
-            Warehouse.total.label("num"),
+            WarehouseOut.out_num,
+            WarehouseOut.out_code,
+            func.date_format(WarehouseOut.created_time, '%Y-%m-%d %H:%i:%S').label('out_date'),
+            subq.c.out_cost
         )
 
     if args.get("start_date") and args.get("end_date"):
@@ -289,8 +290,12 @@ def get_out_list(args):
         q = q.filter(Goods.name.like(f"%{args['word']}%"))
     if args.get("type_id"):
         q = q.filter(Goods.type_id == args["type_id"])
+    q = q.order_by(WarehouseOut.created_time.desc())
     count = q.count()
     offset = (args["page_index"] - 1) * args["page_size"]
     items = q.offset(offset).limit(args["page_size"]).all()
     result = WarehouseOutSchema(many=True).dump(items)
-    return ApiResponse.success({"total": count, "items": result})
+    return {
+        'total': count,
+        'items': result
+    }

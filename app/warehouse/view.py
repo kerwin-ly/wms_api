@@ -4,7 +4,7 @@ from sqlalchemy import func
 
 from app.common.models.goods import Goods, GoodsType
 from app.common.models.warehouse import WarehouseIn, WarehouseOut, Warehouse, WarehouseHistory
-from app.warehouse.schema import WarehouseSchema
+from app.warehouse.schema import WarehouseSchema, WarehouseBatchSchema, WarehouseInSchema
 from app.warehouse.service import (
     get_out_batches,
     get_filtered_in_list,
@@ -83,7 +83,28 @@ class WarehouseBatch(Resource):
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        q = WarehouseIn.query \
+            .with_entities(
+                WarehouseIn.price,
+                WarehouseIn.in_type,
+                WarehouseIn.in_code,
+                func.date_format(WarehouseIn.created_time, '%Y-%m-%d %H:%i:%S').label('in_date'),
+                (WarehouseIn.in_num - WarehouseIn.out_num).label('exist_num')
+            ) \
+            .filter(
+                WarehouseIn.in_num > WarehouseIn.out_num,
+                WarehouseIn.goods_id == args['goods_id']
+            ) \
+            .order_by(WarehouseIn.created_time.desc())
+        count = q.count()
+        offset = (args["page_index"] - 1) * args["page_size"]
+        items = q.offset(offset).limit(args["page_size"]).all()
+        result = WarehouseInSchema(many=True).dump(items)
+        return ApiResponse.success({
+            'total': count,
+            'result': result
+        })
+
 
 
 class WarehouseInList(Resource):
@@ -225,6 +246,7 @@ class WarehouseOutList(Resource):
             "start_date": fields.String(),
             "end_date": fields.String(),
             "word": fields.String(missing=""),
+            "type_id": fields.Integer()
         }
     )
     def get(self, args: typing.Dict):
@@ -242,10 +264,33 @@ class WarehouseOutDownload(Resource):
             "start_date": fields.String(),
             "end_date": fields.String(),
             "word": fields.String(missing=""),
+            "type_id": fields.Integer()
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        data = get_out_list(args)
+        result = data['items']
+        cols = [{
+            'key': 'goods_name',
+            'value': '类目名',
+        }, {
+            'key': 'type_name',
+            'value': '分类名称'
+        }, {
+            'key': 'out_num',
+            'value': '出库数量'
+        }, {
+            'key': 'out_code',
+            'value': '出库单号'
+        }, {
+            'key': 'out_date',
+            'value': '出库时间'
+        }, {
+            'key': 'out_cost',
+            'value': '出库成本'
+        }]
+        url = fs.generate_excel(cols, result, '出库列表')
+        return ApiResponse.success({'url': url})
 
 
 class WarehouseOutBatch(Resource):
@@ -260,7 +305,26 @@ class WarehouseOutBatch(Resource):
         }
     )
     def get(self, args: typing.Dict):
-        pass
+        q = WarehouseHistory.query \
+            .with_entities(
+                WarehouseHistory.price,
+                WarehouseHistory.type.label("in_type"),
+                WarehouseHistory.num.label("out_num"),
+                WarehouseHistory.code.label("in_code"),
+                func.date_format(WarehouseHistory.created_time, '%Y-%m-%d %H:%i:%S').label('in_date'),
+            ) \
+            .filter(
+                WarehouseHistory.goods_id == args['goods_id'],
+                WarehouseHistory.code == args['out_code']
+            ) \
+            .order_by(WarehouseHistory.created_time.desc())
+
+        count = q.count()
+        offset = (args["page_index"] - 1) * args["page_size"]
+        items = q.offset(offset).limit(args["page_size"]).all()
+        result = WarehouseBatchSchema(many=True).dump(items)
+
+        return {"total": count, "items": result}
 
 
 class WarehouseItemHistory(Resource):

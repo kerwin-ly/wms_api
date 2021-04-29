@@ -26,7 +26,7 @@ class WarehouseInSchema(WarehouseIn.schema_class):
 
 class WarehouseHistorySchema(WarehouseHistory.schema_class):
     class Meta:
-        fields = ("id", "goods_id", "goods_name", "type_id", "type_name", "operation", "date", "num", "price")
+        fields = ("id", "goods_id", "code", "goods_name", "type_id", "type_name", "operation", "date", "num", "price")
 
 
 class WarehouseInSchema(WarehouseHistory.schema_class):
@@ -42,6 +42,8 @@ class WarehouseInSchema(WarehouseHistory.schema_class):
             "in_type",
             "in_code",
             "in_date",
+            "exist_num",
+            "state"
         )
 
 
@@ -53,3 +55,7 @@ class WarehouseSchema(Warehouse.schema_class):
 class WarehouseOutSchema(WarehouseOut.schema_class):
     class Meta:
         fields = ("id", "goods_id", "goods_name", "type_id", "type_name", "out_num", "out_code", "out_date", "out_cost")
+
+class WarehouseBatchSchema(WarehouseHistory.schema_class):
+    class Meta:
+        fields = ("price", 'out_num', 'in_type', 'in_code', 'in_date')
