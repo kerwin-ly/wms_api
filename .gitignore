@@ -18,12 +18,12 @@ db.sqlite
 migrations/versions/*.py
 .local
 
-deploy/data/postgres/
-deploy/data/text_summary/
-deploy/data/word_embedding/
-deploy/data/new_word
-deploy/data/assemble_dp_subservice/
-deploy/docker-compose2.yml
+docker/data/postgres/
+docker/data/text_summary/
+docker/data/word_embedding/
+docker/data/new_word
+docker/data/assemble_dp_subservice/
+docker/docker-compose2.yml
 
 .ipynb_checkpoints/
 *.ipynb
