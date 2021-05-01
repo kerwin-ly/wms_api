@@ -73,7 +73,7 @@ class BaseModel(db.Model, DatabaseOperateMixin):
 
     def delete(self) -> None:
         db.session.delete(self)
-        self.schema.session.add(self)
+        db.session.commit()
 
     def jsonify(self, *args: typing.Tuple, **kwargs: typing.Dict) -> typing.Dict:
         return self.schema.dump(self, *args, many=False, **kwargs)

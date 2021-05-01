@@ -4,6 +4,7 @@ from marshmallow import ValidationError
 
 from app.common.models.goods import GoodsType, Goods
 from app.goods.schema import GoodsTypeSchema, GoodsSchema
+from database.mysql_db import session
 from patch import fields, parse
 from utils.http import ApiResponse
 
@@ -61,7 +62,6 @@ class GoodsItemResource(Resource):
         """删除商品"""
         item = Goods.query.filter_by(id=goods_id).one()
         item.delete()
-        item.commit()
         return ApiResponse.success()
 
 
