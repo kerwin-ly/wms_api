@@ -69,7 +69,7 @@ class WarehouseList(Resource):
         items = q.offset(offset).limit(args["page_size"]).all()
         result = WarehouseSchema(many=True).dump(items)
 
-        return {"total": count, "items": result}
+        return ApiResponse.success({"total": count, "items": result})
 
 
 class WarehouseBatch(Resource):
@@ -102,7 +102,7 @@ class WarehouseBatch(Resource):
         result = WarehouseInSchema(many=True).dump(items)
         return ApiResponse.success({
             'total': count,
-            'result': result
+            'items': result
         })
 
 
@@ -324,7 +324,7 @@ class WarehouseOutBatch(Resource):
         items = q.offset(offset).limit(args["page_size"]).all()
         result = WarehouseBatchSchema(many=True).dump(items)
 
-        return {"total": count, "items": result}
+        return ApiResponse.success({"total": count, "items": result})
 
 
 class WarehouseItemHistory(Resource):

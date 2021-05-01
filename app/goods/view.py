@@ -4,7 +4,6 @@ from marshmallow import ValidationError
 
 from app.common.models.goods import GoodsType, Goods
 from app.goods.schema import GoodsTypeSchema, GoodsSchema
-from database.mysql_db import session
 from patch import fields, parse
 from utils.http import ApiResponse
 

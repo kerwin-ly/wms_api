@@ -241,7 +241,7 @@ def get_in_list(args):
         q = q.filter(Goods.name.like(f"%{args['word']}%"))
     if args.get("type_id"):
         q = q.filter(Goods.type_id == args["type_id"])
-    if args.get("type"):
+    if args.get("in_type"):
         q = q.filter(WarehouseIn.in_type == args["in_type"])
     q = q.order_by(WarehouseIn.created_time.desc())
     count = q.count()

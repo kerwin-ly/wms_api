@@ -29,7 +29,7 @@ class WarehouseHistorySchema(WarehouseHistory.schema_class):
         fields = ("id", "goods_id", "code", "goods_name", "type_id", "type_name", "operation", "date", "num", "price")
 
 
-class WarehouseInSchema(WarehouseHistory.schema_class):
+class WarehouseInSchema(WarehouseIn.schema_class):
     class Meta:
         fields = (
             "id",
