@@ -17,7 +17,6 @@ gunicorn = "*"
 flask-sqlalchemy = "*"
 marshmallow-sqlalchemy = "*"
 flask-marshmallow = "*"
-paramiko = "*"
 xlwt = "*"
 
 [dev-packages]

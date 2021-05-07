@@ -10,7 +10,7 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 
 
-flask db init && flask db migrate && flask db upgrade
+flask db migrate && flask db upgrade
 
 if [ "$?" != "0" ]; then
     echo "An error occurred when flask db migrate or upgrade"
